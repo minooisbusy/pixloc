@@ -499,6 +499,11 @@ def training(rank: int, conf, output_dir: Path, args: argparse.Namespace):
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[device])
+        # Gradient checkpointing reruns the forward segment during backward,
+        # which fires the DDP reducer hook twice for the same parameter.
+        # _set_static_graph() tells DDP the graph is fixed each iteration,
+        # suppressing the double-ready error without changing semantics.
+        model._set_static_graph()
     if main:
         logger.info(f'Model:\n{model}')
     torch.backends.cudnn.benchmark = True
