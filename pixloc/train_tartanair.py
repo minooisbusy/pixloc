@@ -292,12 +292,17 @@ def tartanair_to_pixloc(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf,
-                  pbar=True, seed=0, step_offset=0):
-    """Run a full pass over loader, return averaged metrics dict."""
+                  pbar=True, seed=0, step_offset=0, eval_stride=1):
+    """Run a pass over loader, return averaged metrics dict.
+
+    eval_stride: evaluate 1 out of every eval_stride batches (default 1 = all).
+    """
     model.eval()
     results: dict[str, AverageMetric | MedianMetric] = {}
     for i, raw_batch in enumerate(
             tqdm(loader, desc='Evaluation', ascii=True, disable=not pbar)):
+        if i % eval_stride != 0:
+            continue
         raw_batch = batch_to_device(raw_batch, device, non_blocking=True)
         data = tartanair_to_pixloc(
             raw_batch, device, seed=seed, step=step_offset + i)
@@ -681,6 +686,7 @@ def training(rank: int, conf, output_dir: Path, args: argparse.Namespace):
                         pbar=main,
                         seed=conf.train.seed,
                         step_offset=tot_it,
+                        eval_stride=args.eval_stride,
                     )
                 if main:
                     str_r = [f'{k} {v:.3E}' for k, v in results.items()]
@@ -814,6 +820,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--num_workers', type=int, default=8,
         help='Total dataloader worker count (divided evenly across GPUs)')
+    parser.add_argument(
+        '--eval_stride', type=int, default=1,
+        help='Evaluate 1 out of every N validation batches (default 1 = all). '
+             'E.g. --eval_stride 5 uses ~20%% of the val set.')
     parser.add_argument(
         '--conf', type=str, default=None,
         help='Optional extra YAML config merged on top of the base config')
