@@ -844,6 +844,10 @@ if __name__ == '__main__':
 
     # ── Launch ────────────────────────────────────────────────────────────────
     if args.distributed:
+        # env:// requires MASTER_ADDR/MASTER_PORT; set localhost defaults so
+        # NCCL never attempts to connect to an external network interface.
+        os.environ.setdefault('MASTER_ADDR', '127.0.0.1')
+        os.environ.setdefault('MASTER_PORT', '29500')
         args.n_gpus = torch.cuda.device_count()
         torch.multiprocessing.spawn(
             main_worker,
