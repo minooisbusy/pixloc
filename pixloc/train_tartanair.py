@@ -386,12 +386,9 @@ def training(rank: int, conf, output_dir: Path, args: argparse.Namespace):
         logger.info(f'Training in distributed mode with {args.n_gpus} GPUs')
         assert torch.cuda.is_available()
         device = rank
-        lock   = Path(os.getcwd(),
-                      f'distributed_lock_{os.getenv("LSB_JOBID", 0)}')
-        assert not lock.exists(), lock
         torch.distributed.init_process_group(
             backend='nccl', world_size=args.n_gpus, rank=device,
-            init_method='file://' + str(lock))
+            init_method='env://')
         torch.cuda.set_device(device)
 
         # Divide batch size and workers evenly across GPUs
